@@ -85,10 +85,17 @@ To prepare a release for multiple platforms:
 ---
 
 ## 🎮 Usage
-- `echomind record`: Start a recording session.
-- `echomind config`: Change your default save path and format.
+- `echomind record` (or `em record` after install): Start a recording session.
+- `echomind config`: Change your default save path, format, and quality.
 - `echomind history`: View a log of your past recordings.
-- `echomind install`: Automatically add EchoMind to your Windows PATH.
+- `echomind install`: Automatically add EchoMind to your Windows PATH and create an `em` shorthand.
 - `echomind --help`: See all available options.
+
+### Keyboard Shortcuts (Recording)
+- **Enter**: Stop recording / Confirm save.
+- **Arrows**: Navigate fields in the save menu.
+- **'o'**: Open the saved recording in your default app.
+- **'r'**: Start a new recording session immediately after saving.
+- **'q'**: Quit the application.
 
 Enjoy your digital voice journaling! 🚀

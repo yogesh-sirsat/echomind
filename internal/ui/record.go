@@ -118,6 +118,12 @@ func (m RecordModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				_ = openFile(m.filePath)
 				return m, nil
 			}
+		case "r":
+			if m.state == StateFinished {
+				// Reset for a new recording
+				newModel := InitialRecordModel(m.config)
+				return newModel, newModel.Init()
+			}
 		case "enter":
 			if m.state == StateRecording {
 				m.recorder.Stop()
@@ -321,7 +327,7 @@ func (m RecordModel) View() string {
 		s.WriteString("\n")
 		s.WriteString(lipgloss.NewStyle().Foreground(SecondaryColor).Render("Your voice has been captured in the digital void."))
 		s.WriteString("\n\n")
-		s.WriteString(StatusStyle.Render("Press 'o' to open in default app, 'q' to exit"))
+		s.WriteString(StatusStyle.Render("Press 'o' to open, 'r' to record again, 'q' to exit"))
 	}
 
 	return lipgloss.NewStyle().Padding(1, 2).Render(s.String())

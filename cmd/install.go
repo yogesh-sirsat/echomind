@@ -40,6 +40,16 @@ var installCmd = &cobra.Command{
 			return
 		}
 
+		// Create em.bat shorthand in the same directory
+		batPath := filepath.Join(exeDir, "em.bat")
+		batContent := fmt.Sprintf("@echo off\n\"%s\" %%*", exePath)
+		err = os.WriteFile(batPath, []byte(batContent), 0644)
+		if err != nil {
+			fmt.Printf("Error creating shorthand: %v\n", err)
+		} else {
+			fmt.Println(ui.InfoStyle.Render("Shorthand 'em' created successfully."))
+		}
+
 		fmt.Println(ui.InfoStyle.Render(string(out)))
 		fmt.Println(ui.StatusStyle.Render("You may need to restart your terminal for changes to take effect."))
 	},
