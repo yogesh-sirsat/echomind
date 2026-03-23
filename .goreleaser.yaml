@@ -4,7 +4,10 @@ project_name: echomind
 
 before:
   hooks:
+    # You may remove this if you don't use go modules.
     - go mod tidy
+    # you may remove this if you don't need go generate
+    - go generate ./...
 
 builds:
   - id: echomind
@@ -25,12 +28,20 @@ builds:
     # This setup assumes the environment has the necessary compilers or is running in a specialized CI.
 
 archives:
-  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format_overrides:
-      - goos: windows
-        format: zip
-    files:
-      - README.md
+- formats: [tar.gz]
+    # this name template makes the OS and Arch compatible with the results of `uname`.
+  name_template: >-
+    {{ .ProjectName }}_
+    {{- title .Os }}_
+    {{- if eq .Arch "amd64" }}x86_64
+    {{- else if eq .Arch "386" }}i386
+    {{- else }}{{ .Arch }}{{ end }}
+    {{- if .Arm }}v{{ .Arm }}{{ end }}
+  format_overrides:
+    - goos: windows
+      formats: [zip]
+  files:
+    - README.md
 
 checksum:
   name_template: "checksums.txt"
@@ -52,17 +63,3 @@ release:
   draft: false
   replace_existing_draft: true
   prerelease: auto
-
-brews:
-  - name: echomind
-    repository:
-      owner: yogesh-sirsat
-      name: homebrew-tap
-    directory: Formula
-    homepage: "https://github.com/yogesh-sirsat/echomind"
-    description: "A colorful and interactive voice-recording CLI tool"
-    license: "MIT"
-    test: |
-      system "#{bin}/echomind --help"
-    install: |
-      bin.install "echomind"
