@@ -1,0 +1,68 @@
+# GoReleaser configuration for EchoMind CLI
+version: 2
+project_name: echomind
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: echomind
+    main: ./main.go
+    binary: echomind
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - windows
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+    # Note: Cross-compiling CGO requires a cross-compiler (e.g. zig cc or x86_64-w64-mingw32-gcc)
+    # This setup assumes the environment has the necessary compilers or is running in a specialized CI.
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  github:
+    owner: yogesh-sirsat
+    name: echomind
+  draft: false
+  replace_existing_draft: true
+  prerelease: auto
+
+brews:
+  - name: echomind
+    repository:
+      owner: yogesh-sirsat
+      name: homebrew-tap
+    directory: Formula
+    homepage: "https://github.com/yogesh-sirsat/echomind"
+    description: "A colorful and interactive voice-recording CLI tool"
+    license: "MIT"
+    test: |
+      system "#{bin}/echomind --help"
+    install: |
+      bin.install "echomind"
