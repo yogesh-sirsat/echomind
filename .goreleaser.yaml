@@ -8,18 +8,15 @@ before:
     - go generate ./...
 
 builds:
-  - id: echomind
+  - id: echomind-windows
     main: ./main.go
     binary: echomind
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
       - windows
-      - linux
-      - darwin
     goarch:
       - amd64
-      - arm64
     ignore:
       - goos: windows
         goarch: arm64
@@ -29,13 +26,7 @@ builds:
 archives:
   - formats: [tar.gz]
     # this name template makes the OS and Arch compatible with the results of `uname`.
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         formats: [zip]
