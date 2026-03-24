@@ -79,7 +79,7 @@ To prepare a release for multiple platforms:
 
 ### Future Enhancements
 - [x] Add MP3/FLAC encoding support (requires additional C libraries).
-- [ ] Implement a `history` command to browse past recordings.
+- [x] Implement a `history` command to browse past recordings.
 - [ ] Add audio playback within the CLI.
 
 ---
