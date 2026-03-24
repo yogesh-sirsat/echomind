@@ -2,8 +2,11 @@ name: Release EchoMind
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+  workflow_dispatch: # Allows manual trigger from the GitHub UI
 
 permissions:
   contents: write
@@ -21,17 +24,18 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
+          cache: true # Enables automatic caching of Go modules and build cache
 
-      - name: Install dependencies (Linux ALSA)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev
+      - name: Install ALSA (Fast)
+        # We skip 'apt-get update' because the ubuntu-latest image is usually up to date
+        run: sudo apt-get install -y libasound2-dev
 
-      - name: Run GoReleaser (Release Only)
+      - name: Run GoReleaser (Snapshot on Main, Release on Tag)
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean
+          # Use 'release' for tags, 'snapshot' for main branch to test the build
+          args: ${{ startsWith(github.ref, 'refs/tags/') && 'release --clean' || 'build --snapshot --clean --single-target' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
