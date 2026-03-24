@@ -12,6 +12,9 @@ builds:
     binary: echomind
     env:
       - CGO_ENABLED=1
+      # We use zig cc for cross-compilation of CGO
+      - CC=zig cc
+      - CXX=zig c++
     goos:
       - windows
       - linux
@@ -19,8 +22,18 @@ builds:
     goarch:
       - amd64
       - arm64
+    # Set the zig targets for each OS/Arch
+    targets:
+      - linux_amd64_v1
+      - linux_arm64
+      - windows_amd64_v1
+      - windows_arm64
+      - darwin_amd64_v1
+      - darwin_arm64
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+    flags:
+      - -mod=readonly
 
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
@@ -46,8 +59,6 @@ release:
   draft: false
   replace_existing_draft: true
   prerelease: auto
-  # This is important for matrix builds: it allows multiple jobs to upload to the same release
-  mode: append 
 
 brews:
   - name: echomind
