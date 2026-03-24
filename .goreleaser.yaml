@@ -23,11 +23,10 @@ builds:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
 
 archives:
-  - formats: [tar.gz]
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        formats: [zip]
+        format: zip
     files:
       - README.md
 
@@ -39,10 +38,6 @@ snapshot:
 
 changelog:
   sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
 
 release:
   github:
@@ -51,6 +46,8 @@ release:
   draft: false
   replace_existing_draft: true
   prerelease: auto
+  # This is important for matrix builds: it allows multiple jobs to upload to the same release
+  mode: append 
 
 brews:
   - name: echomind
