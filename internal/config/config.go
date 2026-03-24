@@ -7,9 +7,10 @@ import (
 )
 
 type Config struct {
-	DefaultFormat    string `json:"default_format"`
-	DefaultDirectory string `json:"default_directory"`
-	DefaultQuality   string `json:"default_quality"` // low, medium, high
+	DefaultFormat       string `json:"default_format"`
+	DefaultDirectory    string `json:"default_directory"`
+	DefaultQuality      string `json:"default_quality"`      // low, medium, high
+	WaveformOrientation string `json:"waveform_orientation"` // vertical, horizontal
 }
 
 func GetConfigDir() (string, error) {
@@ -45,9 +46,10 @@ func Load() (Config, error) {
 		// Return defaults if file doesn't exist
 		home, _ := os.UserHomeDir()
 		return Config{
-			DefaultFormat:    "wav",
-			DefaultDirectory: filepath.Join(home, "Recordings"),
-			DefaultQuality:   "medium",
+			DefaultFormat:       "wav",
+			DefaultDirectory:    filepath.Join(home, "Recordings"),
+			DefaultQuality:      "medium",
+			WaveformOrientation: "horizontal",
 		}, nil
 	}
 

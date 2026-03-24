@@ -3,18 +3,17 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"echomind/internal/config"
 	"echomind/internal/ui"
 
-	"github.com/charmbracelet/lipgloss"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
 var historyCmd = &cobra.Command{
 	Use:   "history",
-	Short: "View recording history",
+	Short: "View and browse recording history",
 	Run: func(cmd *cobra.Command, args []string) {
 		history, err := config.LoadHistory()
 		if err != nil {
@@ -27,15 +26,10 @@ var historyCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Println(ui.TitleStyle.Render("📊 Recording History"))
-		fmt.Println()
-
-		for _, entry := range history {
-			timestamp := entry.Timestamp.Format("2006-01-02 15:04:05")
-			fmt.Printf("%s %s\n", ui.PromptStyle.Render("Date:"), timestamp)
-			fmt.Printf("%s %s\n", ui.StatusStyle.Render("File:"), entry.FileName)
-			fmt.Printf("%s %s\n", ui.StatusStyle.Render("Path:"), entry.FilePath)
-			fmt.Println(lipgloss.NewStyle().Foreground(ui.MutedColor).Render(strings.Repeat("-", 40)))
+		p := tea.NewProgram(ui.InitialHistoryModel(history), tea.WithAltScreen())
+		if _, err := p.Run(); err != nil {
+			fmt.Printf("Error running history UI: %v\n", err)
+			os.Exit(1)
 		}
 	},
 }

@@ -58,7 +58,8 @@ func InitialRecordModel(cfg config.Config) RecordModel {
 	case "high":
 		sampleRate = 48000
 	}
-	rec, _ := audio.NewRecorder(sampleRate)
+	configDir, _ := config.GetConfigDir()
+	rec, _ := audio.NewRecorder(sampleRate, configDir)
 
 	fni := textinput.New()
 	fni.Placeholder = "Enter file name..."
@@ -82,7 +83,7 @@ func InitialRecordModel(cfg config.Config) RecordModel {
 		state:    StateStarting,
 		config:   cfg,
 		progress: p,
-		waveform: make([]float64, 20),
+		waveform: make([]float64, 70),
 		recorder: rec,
 		fileNameInput: fni,
 		formats:       formats,
@@ -113,6 +114,14 @@ func (m RecordModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.recorder.Close()
 			}
 			return m, tea.Quit
+		case "c", "esc":
+			if m.state == StateRecording {
+				if m.recorder != nil {
+					m.recorder.Stop()
+					m.recorder.Close()
+				}
+				return m, tea.Quit
+			}
 		case "o":
 			if m.state == StateFinished {
 				_ = openFile(m.filePath)
@@ -120,7 +129,6 @@ func (m RecordModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "r":
 			if m.state == StateFinished {
-				// Reset for a new recording
 				newModel := InitialRecordModel(m.config)
 				return newModel, newModel.Init()
 			}
@@ -140,7 +148,6 @@ func (m RecordModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 
-					// Save to history
 					_ = config.AddToHistory(config.HistoryEntry{
 						Timestamp: time.Now(),
 						FileName:  m.fileName,
@@ -197,17 +204,15 @@ func (m RecordModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.tickCount++
 			m.blink = !m.blink
 			
-			// Use real amplitude
 			amp := 0.0
 			if m.recorder != nil {
 				amp = float64(m.recorder.GetAmplitude())
 			}
 			
-			// Shift waveform
 			for i := 0; i < len(m.waveform)-1; i++ {
 				m.waveform[i] = m.waveform[i+1]
 			}
-			m.waveform[len(m.waveform)-1] = amp * 5.0 // Scale for visibility
+			m.waveform[len(m.waveform)-1] = amp * 40.0
 			
 			return m, tick()
 		}
@@ -278,28 +283,32 @@ func (m RecordModel) View() string {
 
 		s.WriteString(PromptStyle.Render("Waveform:"))
 		s.WriteString("\n")
-		for _, v := range m.waveform {
-			barLen := int(v * 30)
-			if barLen > 30 {
-				barLen = 30
+		
+		if m.config.WaveformOrientation == "horizontal" {
+			// Horizontal layout (wide)
+			s.WriteString(renderHorizontalWave(m.waveform))
+		} else {
+			// Vertical layout (capped to 25 samples for height)
+			startIdx := len(m.waveform) - 25
+			if startIdx < 0 { startIdx = 0 }
+			for _, v := range m.waveform[startIdx:] {
+				barLen := int(v * 30)
+				if barLen > 30 { barLen = 30 }
+				if barLen < 1 && v > 0.01 { barLen = 1 }
+				s.WriteString(lipgloss.NewStyle().Foreground(MainColor).Render(strings.Repeat("█", barLen)) + "\n")
 			}
-			if barLen < 1 && v > 0.01 {
-				barLen = 1
-			}
-			s.WriteString(lipgloss.NewStyle().Foreground(MainColor).Render(strings.Repeat("█", barLen)) + "\n")
 		}
+		
 		s.WriteString("\n")
-		s.WriteString(StatusStyle.Render("Press ENTER to stop recording"))
+		s.WriteString(StatusStyle.Render("Press ENTER to stop, 'c' to cancel"))
 
 	case StateSaving:
 		s.WriteString(TitleStyle.Render("💾 Save Recording"))
 		s.WriteString("\n\n")
 
-		// File Name
 		s.WriteString(m.renderField("File Name:", m.fileNameInput.View(), m.focusIndex == 0))
 		s.WriteString("\n")
 
-		// Format
 		var formatView strings.Builder
 		for i, f := range m.formats {
 			style := lipgloss.NewStyle().Padding(0, 1)
@@ -313,7 +322,6 @@ func (m RecordModel) View() string {
 		s.WriteString(m.renderField("File Format (Left/Right arrows):", formatView.String(), m.focusIndex == 1))
 		s.WriteString("\n")
 
-		// Directory
 		s.WriteString(m.renderField("Save Directory:", m.dirInput.View(), m.focusIndex == 2))
 		s.WriteString("\n")
 
@@ -333,6 +341,50 @@ func (m RecordModel) View() string {
 	return lipgloss.NewStyle().Padding(1, 2).Render(s.String())
 }
 
+func renderHorizontalWave(waveform []float64) string {
+	maxHalfHeight := 3 // 3 up, 3 down, 1 center = 7 lines total
+	var lines []string
+	
+	// Convert waveform to rune grid for safe UTF-8 manipulation
+	width := len(waveform)
+	height := maxHalfHeight*2 + 1
+	grid := make([][]rune, height)
+	for i := range grid {
+		grid[i] = make([]rune, width)
+		for j := range grid[i] {
+			grid[i][j] = ' '
+		}
+	}
+
+	center := maxHalfHeight
+	for col, v := range waveform {
+		h := int(v * float64(maxHalfHeight))
+		if h < 1 && v > 0.02 { h = 1 }
+		
+		grid[center][col] = '━' // Center line
+		for i := 1; i <= h; i++ {
+			if center-i >= 0 { grid[center-i][col] = '█' }
+			if center+i < height { grid[center+i][col] = '█' }
+		}
+	}
+
+	// Render grid to string with colors
+	for r := 0; r < height; r++ {
+		var line strings.Builder
+		for c := 0; c < width; c++ {
+			char := grid[r][c]
+			style := lipgloss.NewStyle().Foreground(MainColor)
+			if char == '━' {
+				style = style.Foreground(SecondaryColor)
+			}
+			line.WriteString(style.Render(string(char)))
+		}
+		lines = append(lines, line.String())
+	}
+	
+	return strings.Join(lines, "\n")
+}
+
 func openFile(path string) error {
 	var cmd string
 	var args []string
@@ -344,7 +396,7 @@ func openFile(path string) error {
 	case "darwin":
 		cmd = "open"
 		args = []string{path}
-	default: // linux, freebsd, etc.
+	default:
 		cmd = "xdg-open"
 		args = []string{path}
 	}

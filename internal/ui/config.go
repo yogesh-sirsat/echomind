@@ -12,25 +12,32 @@ import (
 )
 
 type ConfigModel struct {
-	config      config.Config
-	formatInput textinput.Model
-	dirInput    textinput.Model
-	qualities   []string
-	qualityIdx  int
-	focusIndex  int
-	submitted   bool
-	err         error
+	config       config.Config
+	formats      []string
+	formatIdx    int
+	qualities    []string
+	qualityIdx   int
+	orientations []string
+	orientIdx    int
+	dirInput     textinput.Model
+	focusIndex   int
+	submitted    bool
+	err          error
 }
 
 func InitialConfigModel(cfg config.Config) ConfigModel {
-	fi := textinput.New()
-	fi.Placeholder = "wav, mp3, flac"
-	fi.SetValue(cfg.DefaultFormat)
-	fi.Focus()
-
 	di := textinput.New()
 	di.Placeholder = "C:\\Users\\..."
 	di.SetValue(cfg.DefaultDirectory)
+
+	formats := []string{"wav", "mp3", "flac"}
+	formatIdx := 0
+	for i, f := range formats {
+		if strings.ToLower(f) == strings.ToLower(cfg.DefaultFormat) {
+			formatIdx = i
+			break
+		}
+	}
 
 	qualities := []string{"low", "medium", "high"}
 	qualityIdx := 1 // medium
@@ -41,13 +48,25 @@ func InitialConfigModel(cfg config.Config) ConfigModel {
 		}
 	}
 
+	orientations := []string{"horizontal", "vertical"}
+	orientIdx := 0
+	for i, o := range orientations {
+		if o == cfg.WaveformOrientation {
+			orientIdx = i
+			break
+		}
+	}
+
 	return ConfigModel{
-		config:      cfg,
-		formatInput: fi,
-		dirInput:    di,
-		qualities:   qualities,
-		qualityIdx:  qualityIdx,
-		focusIndex:  0,
+		config:       cfg,
+		formats:      formats,
+		formatIdx:    formatIdx,
+		dirInput:     di,
+		qualities:    qualities,
+		qualityIdx:   qualityIdx,
+		orientations: orientations,
+		orientIdx:    orientIdx,
+		focusIndex:   0,
 	}
 }
 
@@ -70,15 +89,23 @@ func (m ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.focusIndex++
 			}
 
-			if m.focusIndex > 2 {
+			if m.focusIndex > 3 {
 				m.focusIndex = 0
 			} else if m.focusIndex < 0 {
-				m.focusIndex = 2
+				m.focusIndex = 3
 			}
 
 			return m.updateFocus()
 
 		case "left", "right":
+			if m.focusIndex == 0 {
+				if msg.String() == "left" {
+					m.formatIdx = (m.formatIdx - 1 + len(m.formats)) % len(m.formats)
+				} else {
+					m.formatIdx = (m.formatIdx + 1) % len(m.formats)
+				}
+				return m, nil
+			}
 			if m.focusIndex == 1 {
 				if msg.String() == "left" {
 					m.qualityIdx = (m.qualityIdx - 1 + len(m.qualities)) % len(m.qualities)
@@ -87,11 +114,20 @@ func (m ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
+			if m.focusIndex == 2 {
+				if msg.String() == "left" {
+					m.orientIdx = (m.orientIdx - 1 + len(m.orientations)) % len(m.orientations)
+				} else {
+					m.orientIdx = (m.orientIdx + 1) % len(m.orientations)
+				}
+				return m, nil
+			}
 
 		case "enter":
-			if m.focusIndex == 2 {
-				m.config.DefaultFormat = strings.ToLower(m.formatInput.Value())
+			if m.focusIndex == 3 {
+				m.config.DefaultFormat = m.formats[m.formatIdx]
 				m.config.DefaultQuality = m.qualities[m.qualityIdx]
+				m.config.WaveformOrientation = m.orientations[m.orientIdx]
 				m.config.DefaultDirectory = m.dirInput.Value()
 				err := config.Save(m.config)
 				if err != nil {
@@ -107,9 +143,7 @@ func (m ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	if m.focusIndex == 0 {
-		m.formatInput, cmd = m.formatInput.Update(msg)
-	} else if m.focusIndex == 2 {
+	if m.focusIndex == 3 {
 		m.dirInput, cmd = m.dirInput.Update(msg)
 	}
 	return m, cmd
@@ -118,14 +152,9 @@ func (m ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m ConfigModel) updateFocus() (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch m.focusIndex {
-	case 0:
-		cmd = m.formatInput.Focus()
+	case 0, 1, 2:
 		m.dirInput.Blur()
-	case 1:
-		m.formatInput.Blur()
-		m.dirInput.Blur()
-	case 2:
-		m.formatInput.Blur()
+	case 3:
 		cmd = m.dirInput.Focus()
 	}
 	return m, cmd
@@ -147,9 +176,21 @@ func (m ConfigModel) View() string {
 	s.WriteString(TitleStyle.Render("⚙️  EchoMind Settings"))
 	s.WriteString("\n\n")
 
-	s.WriteString(m.renderField("Default Format:", m.formatInput.View(), m.focusIndex == 0))
+	// Format Selection
+	var fmtView strings.Builder
+	for i, f := range m.formats {
+		style := lipgloss.NewStyle().Padding(0, 1)
+		if i == m.formatIdx {
+			style = style.Foreground(lipgloss.Color("#000000")).Background(MainColor).Bold(true)
+		} else {
+			style = style.Foreground(MutedColor)
+		}
+		fmtView.WriteString(style.Render(strings.ToUpper(f)) + " ")
+	}
+	s.WriteString(m.renderField("Default Format (Left/Right):", fmtView.String(), m.focusIndex == 0))
 	s.WriteString("\n")
 
+	// Quality Selection
 	var qualView strings.Builder
 	for i, q := range m.qualities {
 		style := lipgloss.NewStyle().Padding(0, 1)
@@ -163,7 +204,22 @@ func (m ConfigModel) View() string {
 	s.WriteString(m.renderField("Audio Quality (Left/Right):", qualView.String(), m.focusIndex == 1))
 	s.WriteString("\n")
 
-	s.WriteString(m.renderField("Default Directory:", m.dirInput.View(), m.focusIndex == 2))
+	// Orientation Selection
+	var orientView strings.Builder
+	for i, o := range m.orientations {
+		style := lipgloss.NewStyle().Padding(0, 1)
+		if i == m.orientIdx {
+			style = style.Foreground(lipgloss.Color("#000000")).Background(MainColor).Bold(true)
+		} else {
+			style = style.Foreground(MutedColor)
+		}
+		orientView.WriteString(style.Render(strings.ToUpper(o)) + " ")
+	}
+	s.WriteString(m.renderField("Waveform Orientation (Left/Right):", orientView.String(), m.focusIndex == 2))
+	s.WriteString("\n")
+
+	// Directory Input
+	s.WriteString(m.renderField("Default Directory:", m.dirInput.View(), m.focusIndex == 3))
 	s.WriteString("\n")
 
 	s.WriteString(StatusStyle.Render("(arrows/tab to navigate, enter to save, q to quit)"))
