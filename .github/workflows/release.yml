@@ -42,4 +42,4 @@ jobs:
             -v "${PWD}":/workspace \
             -w /workspace \
             goreleaser/goreleaser-cross:v1.25.5-v2.13.3 \
-            goreleaser ${ARGS}
+            ${ARGS}
