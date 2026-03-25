@@ -2,10 +2,6 @@
 version: 2
 project_name: echomind
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: echomind
     main: ./main.go
@@ -20,9 +16,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
-    
-    # This is the magic from the article: mapping specific compilers to specific targets
+      - -s -w -X echomind/cmd.version={{.Version}} -X echomind/cmd.commit={{.Commit}} -X echomind/cmd.date={{.Date}}
     overrides:
       - goos: linux
         goarch: amd64
@@ -49,6 +43,11 @@ builds:
         env:
           - CC=x86_64-w64-mingw32-gcc
           - CXX=x86_64-w64-mingw32-g++
+      - goos: windows
+        goarch: arm64
+        env:
+          - CC=aarch64-w64-mingw32-gcc
+          - CXX=aarch64-w64-mingw32-g++
 
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
@@ -59,7 +58,7 @@ archives:
       - README.md
 
 checksum:
-  name_template: "checksums.txt"
+  name_template: checksums.txt
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
@@ -81,9 +80,9 @@ brews:
       owner: yogesh-sirsat
       name: homebrew-tap
     directory: Formula
-    homepage: "https://github.com/yogesh-sirsat/echomind"
-    description: "A colorful and interactive voice-recording CLI tool"
-    license: "MIT"
+    homepage: https://github.com/yogesh-sirsat/echomind
+    description: A colorful and interactive voice-recording CLI tool
+    license: MIT
     test: |
       system "#{bin}/echomind --help"
     install: |

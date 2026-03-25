@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
+      - v*
   workflow_dispatch:
 
 permissions:
@@ -13,11 +13,9 @@ permissions:
 
 jobs:
   goreleaser:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout
@@ -28,18 +26,20 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
+          go-version-file: go.mod
           cache: true
 
-      - name: Install ALSA (Linux Only)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install -y libasound2-dev
+      - name: Run GoReleaser (cross build image)
+        run: |
+          ARGS="build --snapshot --clean"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            ARGS="release --clean"
+          fi
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: ${{ startsWith(github.ref, 'refs/tags/') && 'release --clean' || 'build --snapshot --clean' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          docker run --rm \
+            -e GITHUB_TOKEN \
+            -e GORELEASER_CURRENT_TAG="${GITHUB_REF_NAME}" \
+            -v "${PWD}":/workspace \
+            -w /workspace \
+            ghcr.io/goreleaser/goreleaser-cross:v2 \
+            goreleaser ${ARGS}
