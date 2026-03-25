@@ -71,17 +71,3 @@ release:
   draft: false
   replace_existing_draft: true
   prerelease: auto
-
-brews:
-  - name: echomind
-    repository:
-      owner: yogesh-sirsat
-      name: homebrew-tap
-    directory: Formula
-    homepage: https://github.com/yogesh-sirsat/echomind
-    description: A colorful and interactive voice-recording CLI tool
-    license: MIT
-    test: |
-      system "#{bin}/echomind --help"
-    install: |
-      bin.install "echomind"

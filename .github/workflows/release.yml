@@ -23,11 +23,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Go
+      - name: Set up Go (for cache key compatibility)
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Restore Go build caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/go-build
+            .cache/go-mod
+          key: ${{ runner.os }}-goreleaser-${{ hashFiles('go.sum', '.goreleaser.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-goreleaser-
 
       - name: Run GoReleaser (cross build image)
         run: |
@@ -36,9 +46,13 @@ jobs:
             ARGS="release --clean"
           fi
 
+          mkdir -p .cache/go-build .cache/go-mod
+
           docker run --rm \
             -e GITHUB_TOKEN \
             -e GORELEASER_CURRENT_TAG="${GITHUB_REF_NAME}" \
+            -e GOCACHE=/workspace/.cache/go-build \
+            -e GOMODCACHE=/workspace/.cache/go-mod \
             -v "${PWD}":/workspace \
             -w /workspace \
             goreleaser/goreleaser-cross:v1.25.5-v2.13.3 \
