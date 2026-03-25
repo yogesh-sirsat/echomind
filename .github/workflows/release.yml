@@ -13,7 +13,10 @@ permissions:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
@@ -28,12 +31,8 @@ jobs:
           go-version: 'stable'
           cache: true
 
-      - name: Install Zig
-        uses: goto-bus-stop/setup-zig@v2
-        with:
-          version: 0.13.0
-
-      - name: Install ALSA (Linux headers)
+      - name: Install ALSA (Linux Only)
+        if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get install -y libasound2-dev
 
       - name: Run GoReleaser
@@ -41,6 +40,7 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
+          # GoReleaser will naturally build for the current OS and skip others due to CGO
           args: ${{ startsWith(github.ref, 'refs/tags/') && 'release --clean' || 'build --snapshot --clean' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
