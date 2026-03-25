@@ -41,5 +41,5 @@ jobs:
             -e GORELEASER_CURRENT_TAG="${GITHUB_REF_NAME}" \
             -v "${PWD}":/workspace \
             -w /workspace \
-            ghcr.io/goreleaser/goreleaser-cross:v2 \
+            goreleaser/goreleaser-cross:v1.25.5-v2.13.3 \
             goreleaser ${ARGS}
